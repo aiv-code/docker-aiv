@@ -1,0 +1,531 @@
+# Table of Contents
+
+1.  [Install awscli](#orgb46c78e)
+2.  [Create new one keypair](#org40fe8f3)
+3.  [Option to Setup new VPC with pub and sub netsub or input](#org2045f63)
+4.  [Setup eks cluster](#org8767d1c)
+5.  [Setup postgresql rds](#org7cc7e2d)
+6.  [Setup ESB Storage Volume](#org5c8df7d)
+7.  [Setup aiv helm chart](#org1fe7c06)
+8.  [ALB ingress](#org49d33bd)
+9.  [Clear eks cluster](#org7d3dce2)
+
+
+
+<a id="orgb46c78e"></a>
+
+# Install awscli
+
+```
+pip install awscli
+```
+
+
+<a id="org40fe8f3"></a>
+
+# Create new one keypair
+
+Have to manually create the input the keypair-name
+
+-   Generate a new keypair if not exists
+
+```
+export KEY_NAME=${KEY_NAME:-"eks-keypair"}
+echo "Checking if key pair $KEY_NAME exists"
+if aws ec2 describe-key-pairs --key-name "$KEY_NAME" >/dev/null 2>&1; then
+  echo "Key pair $KEY_NAME already exists."
+else
+  echo "Creating new key pair: $KEY_NAME"
+  aws ec2 create-key-pair \
+    --key-name "$KEY_NAME" \
+    --query 'KeyMaterial' \
+    --output text > "${KEY_NAME}.pem"
+  chmod 400 "${KEY_NAME}.pem"
+  echo "Key pair $KEY_NAME created and saved to ${KEY_NAME}.pem"
+fi
+```
+
+
+<a id="org2045f63"></a>
+
+# Option to Setup new VPC with pub and sub netsub or input
+
+-   Separate the vpc.yaml file
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+VPC_CIDR="10.0.0.0/16"
+
+echo "Deploying VPC stack: $CLUSTER_NAME"
+echo "Cluster name: $CLUSTER_NAME"
+echo "VPC CIDR: $VPC_CIDR"
+
+aws cloudformation deploy \
+  --template-file vpc.yaml \
+  --stack-name ${CLUSTER_NAME}-vpc \
+  --parameter-overrides \
+    ClusterName=$CLUSTER_NAME \
+    VpcCidr=$VPC_CIDR \
+  --tags \
+    Project=EKS-Infrastructure \
+    Environment=Production \
+    ManagedBy=CloudFormation
+
+```
+
+
+<a id="org8767d1c"></a>
+
+# Setup eks cluster
+
+-   Get output VPC ID and Subnet IDs
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+echo "Fetching outputs for stack: $CLUSTER_NAME"
+# Get and assignt VPC ID and Subnet IDs to variables
+output=$(aws cloudformation describe-stacks \
+  --stack-name ${CLUSTER_NAME}-vpc \
+  --query "Stacks[0].Outputs[?OutputKey=='VpcId' || OutputKey=='PublicSubnetIds' || OutputKey=='PrivateSubnetIds'].[OutputKey, OutputValue]" \
+  --output text | xargs -n 2 echo)
+VPC_ID=$(echo "$output" | grep 'VpcId' | awk '{print $2}')
+PUBLIC_SUBNET_IDS=$(echo "$output" | grep 'PublicSubnetIds' | awk '{print $2}')
+PRIVATE_SUBNET_IDS=$(echo "$output" | grep 'PrivateSubnetIds' | awk '{print $2}')
+echo "VPC ID: $VPC_ID"
+echo "Public Subnet IDs: $PUBLIC_SUBNET_IDS"
+echo "Private Subnet IDs: $PRIVATE_SUBNET_IDS"
+
+```
+
+-   Create eks from eks-infrastructure.yaml file
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+export KEY_NAME=${KEY_NAME:-"eks-keypair"}
+echo "Deploying EKS cluster:  $CLUSTER_NAME"
+aws cloudformation deploy \
+  --template-file eks-infrastructure.yaml \
+  --stack-name ${CLUSTER_NAME}-eks \
+        --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    ClusterName=$CLUSTER_NAME \
+    KeyPairName=$KEY_NAME \
+    VpcId=$VPC_ID \
+    PublicSubnetIds=$PUBLIC_SUBNET_IDS \
+    PrivateSubnetIds=$PRIVATE_SUBNET_IDS \
+  --tags \
+    Project=EKS-Infrastructure \
+    Environment=Production \
+    ManagedBy=CloudFormation
+
+```
+
+-   Install eksctl if not exists
+
+```
+if ! command -v eksctl &> /dev/null; then
+  curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+  sudo mv /tmp/eksctl /usr/local/bin
+fi
+```
+
+-   Get EKS security group by eks
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+
+echo "Fetching EKS security group for stack: $CLUSTER_NAME-eks"
+export EKS_SG_ID=$(aws eks describe-cluster --name $CLUSTER_NAME \
+        --query cluster.resourcesVpcConfig.clusterSecurityGroupId \
+        --output text)
+echo "EKS Security Group ID: $EKS_SG_ID"
+```
+
+
+<a id="org7cc7e2d"></a>
+
+# Setup postgresql rds
+
+-   Setup RDS.yaml file
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+export DB_USERNAME=${DB_USERNAME:-"dbadmin"}
+export DB_PASSWORD=${DB_PASSWORD:-"pasAswordA12"}
+export DB_NAME=${DB_NAME:-"aivdb"}
+
+echo "Deploying RDS stack: $CLUSTER_NAME-rds"
+aws cloudformation deploy \
+  --template-file rds.yaml \
+  --stack-name ${CLUSTER_NAME}-rds \
+  --parameter-overrides \
+    Environment=dev \
+    VpcId=$VPC_ID \
+    PrivateSubnetIds=$PRIVATE_SUBNET_IDS \
+    DatabaseName=$DB_NAME \
+    DatabaseUser=$DB_USERNAME \
+    DatabasePassword=$DB_PASSWORD \
+    DBInstanceClass=db.t3.micro \
+    AllocatedStorage=20 \
+  --tags \
+    Project=EKS-Infrastructure \
+    Environment=Dev \
+    ManagedBy=CloudFormation
+```
+
+-   Get RDS output
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+echo "Fetching RDS outputs for stack: $CLUSTER_NAME-rds"
+export DB_ENDPOINT=$(aws cloudformation describe-stacks \
+  --stack-name ${CLUSTER_NAME}-rds \
+  --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].[OutputValue][0][0]" \
+  --output text)
+echo "DB Endpoint: $DB_ENDPOINT"
+
+```
+
+-   Add security group rule to allow access to RDS
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+
+echo "Adding eks security group rule to allow access to RDS"
+RDS_SG_ID=$(aws cloudformation describe-stacks \
+  --stack-name ${CLUSTER_NAME}-rds \
+  --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecurityGroupId'].[OutputValue][0]" \
+  --output text)
+
+aws ec2 authorize-security-group-ingress \
+        --group-id $RDS_SG_ID \
+        --protocol tcp \
+        --port 5432 \
+        --source-group $EKS_SG_ID
+
+echo "Security group rule added to allow access from node group to RDS."
+```
+
+
+<a id="org5c8df7d"></a>
+
+# Setup ESB Storage Volume
+
+;; <https://stackoverflow.com/questions/75758115/persistentvolumeclaim-is-stuck-waiting-for-a-volume-to-be-created-either-by-ex>
+
+-   Enable IAM OIDC provider
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+eksctl utils associate-iam-oidc-provider --region=ap-southeast-1 --cluster=$CLUSTER_NAME --approve
+```
+
+-   Create Amazon EBS CSI driver IAM role
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+eksctl create iamserviceaccount \
+  --region ap-southeast-1 \
+  --name ebs-csi-controller-sa \
+  --namespace kube-system \
+  --cluster $CLUSTER_NAME \
+  --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+  --approve \
+  --role-only \
+  --role-name AmazonEKS_EBS_CSI_DriverRole
+```
+
+-   Add EBS CSI addons
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+
+eksctl create addon --name aws-ebs-csi-driver --cluster $CLUSTER_NAME \
+ --service-account-role-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/AmazonEKS_EBS_CSI_DriverRole --force
+```
+
+
+<a id="org1fe7c06"></a>
+
+# Setup aiv helm chart
+
+-   Connect to eks cluster
+
+```
+export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-southeast-1"}
+export CLUSTER_NAME=${CLUSTER_NAME:-"aiv"}
+
+echo "Setting up kubectl context for EKS cluster"
+aws eks update-kubeconfig \
+  --name $CLUSTER_NAME
+echo "Kubectl context set for cluster: $CLUSTER_NAME"
+```
+
+-   Install helm if not exists
+
+```
+HELM_VERSION=3.17.3
+HELM_HASH=ee88b3c851ae6466a3de507f7be73fe94d54cbf2987cbaa3d1a3832ea331f2cd
+
+curl https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz -o /tmp/helm-linux-amd64.tar.gz
+echo "${HELM_HASH}  /tmp/helm-linux-amd64.tar.gz" > /tmp/helm.sha256
+sha256sum -c /tmp/helm.sha256
+tar -xf /tmp/helm-linux-amd64.tar.gz -C /tmp
+sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm-${HELM_VERSION}
+sudo ln -sv /usr/local/bin/helm-${HELM_VERSION} /usr/local/bin/helm
+```
+
+-   Build helm chart values.yaml file
+
+```
+cat > values.aiv.yaml <<EOF
+fullnameOverride: aiv
+fullnameOverride: "aiv"
+
+replicaCount: 1
+
+# Set service is ALB aws
+service:
+  type: LoadBalancer
+  port: 80
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb" # Use NLB for better performance
+    service.beta.kubernetes.io/aws-load-balancer-internal: "false" # Set to true for internal access only
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:ap-southeast-1:417447013272:certificate/your-certificate-id" # Replace with your ACM certificate ARN
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+
+volumeMounts:
+- mountPath: /var/lib/aiv/repository/econfig/application.yml
+  subPath: application.yml
+  name: files
+
+files:
+  application.yml: |
+    server:
+      compression:
+        enabled: true
+        mime-types: application/json, text/html, text/xml, text/plain,text/css, text/javascript, application/javascript, application/octet-stream
+        min-response-size: 1024
+      servlet:
+        context-path: /aiv
+      port: 80
+    spring:
+      autoconfigure:
+        exclude: org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      resources:
+        static-locations: classpath:/static/,file:///var/lib/aiv/repository/images/
+      jackson:
+        serialization:
+          WRITE_DATES_AS_TIMESTAMPS: false
+        time-zone: UTC
+      datasource:
+        url: jdbc:postgresql://${DB_ENDPOINT}:5432/${DB_NAME} # database for aiv schema
+        username: ${DB_USERNAME}
+        password: ${DB_PASSWORD}
+        driverClassName: org.postgresql.Driver
+      datasource1:
+        url: jdbc:postgresql://${DB_ENDPOINT}:5432/${DB_NAME}?currentSchema=security # database for security schema
+        username: ${DB_USERNAME}
+        password: ${DB_PASSWORD}
+        driverClassName: org.postgresql.Driver
+      mvc:
+        pathmatch:
+          matching-strategy: ANT_PATH_MATCHER
+      jpa:
+        hibernate:
+          ddl-auto: update
+      liquibase:
+       aiv:
+         enabled: true
+         change-log: classpath:db/changelog/db.changelog-aiv.sql
+       security:
+         enabled: true
+         change-log: classpath:db/changelog/db.changelog-security.sql
+      kafka:
+        bootstrap-servers: kafka:9092
+        consumer:
+          group-id: task-consumer-group
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: com.aiv.cluster.MapDeserializer
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: com.aiv.cluster.MapSerializer
+
+    #For JNDI Datasources
+    datasources:
+      dslist[0]: '{"jndi-name":"jdbc/ActiveIDB","driver-class-name":"org.postgresql.Driver","url":"jdbc:postgresql://${DB_ENDPOINT}:5432/${DB_NAME}","username":"${DB_USERNAME}","password":"${DB_PASSWORD}"}'
+
+    #Application some default values
+    # slatKey -> For stoken decryption SecretKey
+    # ivspec -> For stoken Iv Spec Key
+    # securityClass -> which security class we need to use for authentication and user/roles details
+    # isJira -> Are we using Jira authentication or not
+    app:
+      slatKey: 0123456789abcdef
+      ivspec: fedcba9876543210
+      imgLocation: /var/lib/aiv/repository/images/
+      appLocation: /var/lib/aiv/repository/APP/
+      repositoryLocation: /var/lib/aiv/repository
+      logDir: /var/log/aiv
+      deliveryLocation: /var/lib/aiv/repository/delivery
+      database: postgresql
+      securityClass: com.security.services.SimpleAuthImpl #com.simple.services.SimpleAuthImpl/com.utility.JiraAuthImpl
+      isJira: false
+      noofreports: 10
+      task:
+        kafka:
+          retention.ms: 60000
+          topic:
+            topicName: task-topic       # Name of the Kafka topic
+            partitions: 2         # Number of partitions for the topic
+            replication-factor:  1
+        manager:
+          mode: single  # use "single" if you want to disable Kafka or multi
+
+    #While creating Embed token
+    # ekey -> Generating Embed Encrypted insternal token.
+    # tokenKey -> For generating Embed authentication token
+    embed:
+      ekey: ActiveInteigence
+      tokenKey: H0WWWrNDCCoVKVPXMSei9/+rDJcLbgkEOXhayw790lY=
+      iscustomtoken: false
+
+    logging:
+      level:
+        liquibase: OFF
+
+    # Token used for MicroServices Internal Authentication
+    aiv-internalToken: ActiveIntelligence
+    management.metrics.mongo.command.enabled: false
+    management.metrics.mongo.connectionpool.enabled: false
+
+
+persistence:
+  enabled: true
+  storageClassName: gp3
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  mountPath: /var/lib/aiv
+
+  storageClass:
+    create: true
+    name: gp3
+    provisioner: ebs.csi.aws.com
+    parameters:
+      type: gp3
+      fsType: ext4
+    volumeBindingMode: WaitForFirstConsumer
+    allowVolumeExpansion: true
+    annotations:
+      storageclass.kubernetes.io/is-default-class: "true"
+
+driver_updater:
+  enabled: true
+
+
+persistence_logs:
+  enabled: false
+  size: 10Gi
+
+EOF
+```
+
+-   Deploy helm chart
+
+```
+helm repo add aiv-charts https://giap-aivhub.github.io/docker-aiv/
+helm repo update
+```
+
+```
+helm search repo aiv-charts
+```
+
+```
+helm delete aiv
+```
+
+```
+helm install aiv aiv-charts/aiv -f values.aiv.yaml
+```
+
+-   Update helm chart if you change values.aiv.yaml
+
+```
+helm upgrade aiv aiv-charts/aiv -f values.aiv.yaml
+```
+
+
+<a id="org49d33bd"></a>
+
+# ALB ingress
+
+The ALB is automatically created by the helm chart, so we just need to get the ALB URL and access it.
+
+-   Get service
+
+```
+kubectl get svc aiv
+```
+
+
+<a id="org7d3dce2"></a>
+
+# Clear eks cluster
+
+-   Uninstall helm chart
+
+```
+helm uninstall aiv
+```
+
+-   Delete RDS stack
+
+```
+CLUSTER_NAME=${1:-"aiv"}
+echo "Deleting RDS stack: $CLUSTER_NAME-rds"
+aws cloudformation delete-stack \
+  --stack-name ${CLUSTER_NAME}-rds
+
+```
+
+-   Delete EKS cluster stack
+
+```
+CLUSTER_NAME=${1:-"aiv"}
+echo "Deleting EKS cluster stack: $CLUSTER_NAME"
+aws cloudformation delete-stack \
+  --stack-name ${CLUSTER_NAME}
+aws cloudformation wait stack-delete-complete \
+        --stack-name ${CLUSTER_NAME}
+echo "EKS cluster stack deleted: $CLUSTER_NAME"
+```
+
+-   Delete VPC stack
+
+```
+CLUSTER_NAME=${1:-"aiv"}
+echo "Deleting VPC stack: $CLUSTER_NAME"
+aws cloudformation delete-stack \
+        --stack-name $CLUSTER_NAME-vpc
+aws cloudformation wait stack-delete-complete \
+        --stack-name $CLUSTER_NAME-vpc
+echo "VPC stack deleted: $CLUSTER_NAME"
+```
+
+
+<a id="orgd30b6f4"></a>
+
