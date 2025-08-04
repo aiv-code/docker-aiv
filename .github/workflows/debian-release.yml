@@ -12,9 +12,14 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Get run.jar from Docker image
+      if: startsWith(github.ref, 'refs/tags/debian/')
+      env:
+        TAG: ${{ github.ref_name }}
       run: |
-        docker pull jits023/aiv:6.3.6
-        docker create --name aiv_container jits023/aiv:6.3.6
+        export VERSION=$(echo $TAG | sed 's/debian\///')
+        export IMAGE_VERSION=${VERSION%%-*}
+        docker pull jits023/aiv:${IMAGE_VERSION}
+        docker create --name aiv_container jits023/aiv:${IMAGE_VERSION}
         docker cp aiv_container:/opt/run.jar aiv.jar
         docker rm -f aiv_container
 
