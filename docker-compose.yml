@@ -38,25 +38,14 @@ services:
   aiv:
     platform: linux/amd64
     container_name: aiv
-    image: aivhub/aivlocal:6.4.0-2
+    image: aivhub/aivlocal:6.0.2
     ports:
       - "8080:8080"
     depends_on:
       - db
-    command: >
-      /bin/bash -c '
-      rm /var/lib/aiv/drivers/flight-sql-jdbc-driver-10.0.0.jar &&
-      exec /usr/bin/java --add-opens=java.base/java.nio=ALL-UNNAMED 
-      --add-exports=java.base/sun.nio.ch=ALL-UNNAMED 
-      --add-opens=java.base/sun.nio.ch=ALL-UNNAMED 
-      --add-opens=java.base/sun.util.calendar=ALL-UNNAMED 
-      -Dspring.config.location=/var/lib/aiv/repository/econfig/application.yml 
-      -Dloader.path=/var/lib/aiv/drivers 
-      -cp /var/lib/aiv/repository/econfig/:/var/lib/aiv/aiv.jar 
-      org.springframework.boot.loader.launch.PropertiesLauncher'
     environment:
       aiv_port: 8080
-      aiv_base: /var/lib/aiv
+      aiv_base: /opt
       aiv_db_url: jdbc:postgresql://db:5432/postgres
       aiv_db_user: ${AIV_DB_USER}
       aiv_db_password: ${AIV_DB_PASSWORD}
@@ -64,7 +53,7 @@ services:
       security_db_user: ${AIV_DB_USER}
       security_db_password: ${AIV_DB_PASSWORD}
     volumes:
-      - ./repository:/var/lib/aiv/repository:rw
-      # - ./config/drivers:/var/lib/aiv/drivers
+      - ./repository:/opt/repository:rw
+      - ./config/drivers:/opt/config/drivers
       # - ./logs:/opt/logs:rw
       # - ./dataloc:/usr/local/temp:rw
