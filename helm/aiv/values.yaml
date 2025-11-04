@@ -74,7 +74,7 @@ driver_updater:
     repository: "ghcr.io/giap-aivhub/docker-aiv"
     tag: "helper"
     pullPolicy: "IfNotPresent"
-  path: "/var/lib/aiv/drivers"
+  path: "/var/lib/aiv/config/drivers"
   drivers:
     - "aalto-xml-1.3.2.jar"
     - "bigqueryloader-2.0.0.jar"

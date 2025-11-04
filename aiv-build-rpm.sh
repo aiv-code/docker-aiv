@@ -18,14 +18,14 @@ cd aiv-${VERSION}
 
 # Create application directory structure
 mkdir -p usr/bin
-mkdir -p var/lib/aiv/{drivers,repository/{econfig,Config,images,Default}}
+mkdir -p var/lib/aiv/{config/drivers,repository/{econfig,Config,images,Default}}
 mkdir -p var/log/aiv
 mkdir -p etc/systemd/system
 
 # Copy necessary application files
 cp ../debian/bin/aiv usr/bin/
 cp ../aiv.jar var/lib/aiv/
-cp -r ../config/drivers/* var/lib/aiv/drivers/
+cp -r ../config/drivers/* var/lib/aiv/config/drivers/
 cp -r ../repository/econfig/* var/lib/aiv/repository/econfig/
 cp -r ../repository/Config/* var/lib/aiv/repository/Config/
 cp -r ../repository/images/* var/lib/aiv/repository/images/
@@ -81,7 +81,7 @@ Version:        ${VERSION}
 Release:        ${RELEASE}%{?dist}
 Summary:        AIV Application Package
 License:        Proprietary
-URL:            https://github.com/your-org/aiv
+URL:            aivhub.com
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
