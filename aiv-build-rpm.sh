@@ -85,7 +85,6 @@ URL:            aivhub.com
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
-Requires:       java-17-openjdk
 Requires:       systemd
 
 %description

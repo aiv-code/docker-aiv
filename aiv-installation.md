@@ -1,11 +1,15 @@
-# Debian family
+# AIV Installation Guide
 ## Os support (tested)
 - Debian 11, 12
 - Ubuntu 20*, 22*, 24*
+- RHEL 8, 9
+- CentOS 7, 8, 9
+- Fedora 36+
 
 ## Installation steps
-
+**For Debian/Ubuntu:**
 - Install dependencies
+openjdk >= 17
 ```
 apt-get update
 
@@ -20,8 +24,29 @@ apt-get install -y \
 https://github.com/aiv-code/docker-aiv/releases
 
 - Install package
+
+
 ```
 dpkg -i aiv_6.3.6_all.deb
+```
+
+**For RedHat/CentOS/Fedora:**
+- Install dependencies
+openjdk >= 17
+
+```
+dnf install -y java-17-openjdk-headless ca-certificates
+```
+
+
+- Download the package from GitHub release
+
+https://github.com/aiv-code/docker-aiv/releases
+
+- Install package
+
+```
+rpm -i aiv_6.3.6_all.rpm
 ```
 
 ## Configure the service
@@ -79,8 +104,14 @@ systemctl stop aiv
 
 - Install the new package
 
+**For Debian/Ubuntu:**
 ```
 dpkg -i aiv_<version>_all.deb
+```
+
+**For RedHat/CentOS/Fedora:**
+```
+rpm -U aiv_<version>_all.rpm
 ```
 
 - Restart the service
