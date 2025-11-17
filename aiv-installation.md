@@ -87,7 +87,7 @@ CREATE DATABASE aiv OWNER aiv;
 GRANT ALL PRIVILEGES ON DATABASE aiv TO aiv;
 
 ```
-- Update the postgresql connection at configuration file `/etc/aiv/econfig/application.yml`
+- Update the postgresql connection at configuration file `/var/lib/aiv/repository/econfig/application.yml`
 
 ```
 spring:
