@@ -46,7 +46,41 @@ rpm -i aiv_<version>_all.rpm
 
 ## Configure the service
 ### PostgreSQL
-Assume we are having a PostgreSQL server with superuser permission. Let's create a credential and database for AIV.
+
+#### Install PostgreSQL
+
+**For Debian/Ubuntu:**
+```bash
+apt-get update
+apt-get install -y postgresql postgresql-contrib
+
+# Start and enable PostgreSQL service
+systemctl start postgresql
+systemctl enable postgresql
+
+# Set password for postgres user (optional)
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'your_postgres_password';"
+```
+
+**For RedHat/CentOS/Fedora:**
+```bash
+# Install PostgreSQL
+dnf install -y postgresql postgresql-server postgresql-contrib
+
+# Initialize the database
+sudo postgresql-setup --initdb
+
+# Start and enable PostgreSQL service
+systemctl start postgresql
+systemctl enable postgresql
+
+# Set password for postgres user (optional)
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'your_postgres_password';"
+```
+
+#### Configure PostgreSQL for AIV
+
+Once PostgreSQL is installed and running, create a credential and database for AIV.
 
 ```
 psql -U postgres

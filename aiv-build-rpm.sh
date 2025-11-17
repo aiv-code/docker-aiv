@@ -119,10 +119,18 @@ cp etc/systemd/system/aiv.service %{buildroot}/etc/systemd/system/
 %attr(755,aiv,aiv) /var/lib/aiv
 %attr(755,aiv,aiv) /var/log/aiv
 
+%config(noreplace) /var/lib/aiv/repository/*
+
 %pre
 # Create aiv user and group if they don't exist
 getent group aiv >/dev/null || groupadd -r aiv
 getent passwd aiv >/dev/null || useradd -r -g aiv -d /var/lib/aiv -s /bin/false aiv
+
+# Stop AIV service before upgrade
+if [ \$1 -gt 1 ]; then
+    # This is an upgrade
+    systemctl stop aiv.service 2>/dev/null || true
+fi
 
 %post
 # Reload systemd and enable service
@@ -132,6 +140,16 @@ systemctl enable aiv.service
 # Set proper ownership
 chown -R aiv:aiv /var/lib/aiv
 chown -R aiv:aiv /var/log/aiv
+
+# Start AIV service after installation/upgrade
+if [ \$1 -eq 1 ]; then
+    # Fresh installation
+    echo "AIV installed successfully. Start service with: systemctl start aiv.service"
+elif [ \$1 -gt 1 ]; then
+    # Upgrade - restart the service
+    systemctl start aiv.service
+    echo "AIV upgraded successfully and service restarted"
+fi
 
 %preun
 # Stop and disable service before removal

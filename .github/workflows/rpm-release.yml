@@ -124,20 +124,11 @@ jobs:
           # Installation Instructions
           Switch to root user
 
-          ## Setup AIV Repository
-          ```bash
-          cat > /etc/yum.repos.d/aiv.repo <<-EOF
-          [aiv]
-          name=AIV Repository
-          baseurl=http://nexus.test.mydocubank.com/repository/redhat/
-          enabled=1
-          gpgcheck=0
-          EOF
-          ```
+          ## Download aiv latest in https://github.com/aiv-code/docker-aiv/releases
 
           ## Install AIV
           ```bash
-          dnf install -y aiv
+          rpm -i aiv*.rpm
           ```
           
           ## Start and enable the AIV service
@@ -145,34 +136,10 @@ jobs:
           systemctl enable --now aiv.service
           ```
 
+          ## Update AIV
+          ```
+          rpm -U aiv*.rpm
+          ```
+
         files: |
           aiv*.rpm
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download RPM Artifact
-      env:
-        NEXUS_USER: ${{ secrets.NEXUS_USER }}
-        NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
-        VERSION: ${{needs.build.outputs.version}}
-        RELEASE: ${{needs.build.outputs.release}}
-      uses: actions/download-artifact@v4
-      with:
-        name: rpm-files
-        path: artifacts
-
-    - name: Publish RPM Package to Nexus
-      env:
-        NEXUS_USER: ${{ secrets.NEXUS_USER }}
-        NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
-        VERSION: ${{needs.build.outputs.version}}
-        RELEASE: ${{needs.build.outputs.release}}
-      run: |
-        curl -iv --user ${NEXUS_USER}:${NEXUS_PASSWORD} \
-        "https://nexus.test.mydocubank.com/service/rest/v1/components?repository=redhat" \
-        -H "Accept: application/json" \
-        -H "Content-Type: multipart/form-data" \
-        -F "yum.asset=@artifacts/aiv-${VERSION}-${RELEASE}.el9.noarch.rpm" \
-        -F "yum.asset.filename=aiv-${VERSION}-${RELEASE}.el9.noarch.rpm"
