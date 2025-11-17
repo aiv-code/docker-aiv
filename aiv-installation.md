@@ -58,8 +58,7 @@ apt-get install -y postgresql postgresql-contrib
 systemctl start postgresql
 systemctl enable postgresql
 
-# Set password for postgres user (optional)
-sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'your_postgres_password';"
+
 ```
 
 **For RedHat/CentOS/Fedora:**
@@ -74,8 +73,6 @@ sudo postgresql-setup --initdb
 systemctl start postgresql
 systemctl enable postgresql
 
-# Set password for postgres user (optional)
-sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'your_postgres_password';"
 ```
 
 #### Configure PostgreSQL for AIV
