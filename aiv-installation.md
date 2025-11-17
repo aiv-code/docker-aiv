@@ -19,17 +19,6 @@ apt-get install -y \
 
 ```
 
-- Download the package from GitHub release
-
-https://github.com/aiv-code/docker-aiv/releases
-
-- Install package
-
-
-```
-dpkg -i aiv_6.3.6_all.deb
-```
-
 **For RedHat/CentOS/Fedora:**
 - Install dependencies
 openjdk >= 17
@@ -45,8 +34,14 @@ https://github.com/aiv-code/docker-aiv/releases
 
 - Install package
 
+**For Debian/Ubuntu:**
 ```
-rpm -i aiv_6.3.6_all.rpm
+dpkg -i aiv_<version>_all.deb
+```
+
+**For RedHat/CentOS/Fedora:**
+```
+rpm -i aiv_<version>_all.rpm
 ```
 
 ## Configure the service
