@@ -106,16 +106,16 @@ spring:
 
 ```
 
+- Enable the service
+
+```
+systemctl enable --now aiv.service
+```
+
 ## Start the service
 
 ```
 systemctl start aiv
-```
-
-- Enable the service to start on boot
-
-```
-systemctl enable aiv
 ```
 
 ## How to upgrade
