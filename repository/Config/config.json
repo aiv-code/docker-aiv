@@ -458,6 +458,13 @@
       "description":"BIRT Configurations",
       "properties":[
          {
+		      "name" : "csv",
+		      "displayName" : "CSV Emitter",
+		      "defaultValue" : "",
+		      "required" : false,
+		      "type" : "text",
+		      "placeholder" : ""
+    	}, {
             "name":"execution_maxtime",
             "displayName":"Report Maximum Execution Time (in minutes)",
             "defaultValue":"30",
