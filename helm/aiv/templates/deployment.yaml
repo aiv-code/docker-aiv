@@ -39,25 +39,25 @@ spec:
           args:
             - |
               # Create directory if it doesn't exist
-              mkdir -p /opt/data
+              mkdir -p /mnt/data
 
               # Check if destination already has data
-              if [ "$(ls -A /opt/data)" ]; then
+              if [ "$(ls -A /mnt/data)" ]; then
                 echo "Data already exists in persistent volume at /opt/data. Skipping initialization."
               else
                 echo "Persistent volume is empty. Initializing with default data..."
                 # Copy only if source directory has data
-                if [ "$(ls -A /var/lib/aiv)" ]; then
+                if [ "$(ls -A /opt)" ]; then
                   echo "Copying default data to persistent volume..."
-                  cp -R /var/lib/aiv/* /opt/data/
+                  cp -R /opt/* /mnt/data/
                   echo "Data initialization complete."
                 else
-                  echo "No data to copy from /var/lib/data."
+                  echo "No data to copy from /opt."
                 fi
               fi
           volumeMounts:
           - name: storage
-            mountPath: /opt/data
+            mountPath: /mnt/data
           {{- end }}
         {{- if .Values.driver_updater.enabled }}
         - name: driver-updater
