@@ -1,30 +1,231 @@
-# Default values for aiv.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# Global settings
+fullnameOverride: "aiv"
+nameOverride: ""
 
 replicaCount: 1
 
+# Image configuration
 image:
-  repository: aivhub/aiv
+  repository: ""  # Set your image repository
+  tag: ""  # Overrides the image tag (default is chart appVersion)
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "6.4.23"
 
 imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
 
-# Command to run in the container
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext: {}
+
+# Container security context
+securityContext: {}
+
+# Resource limits and requests
+resources: {}
+
+# Liveness probe configuration
+livenessProbe: {}
+
+# Readiness probe configuration
+readinessProbe: {}
+
+# Custom command
 command: []
 
-# Config parts
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Custom environment variables
+envs: {}
+
+# Environment variables from secret
 env: {}
 
+# PostgreSQL Configuration
+# Configure connection to external PostgreSQL database
+postgresql:
+  # -- Enable PostgreSQL connection
+  enabled: true
+  # -- PostgreSQL server hostname
+  host: postgresql
+  # -- PostgreSQL server port
+  port: 5432
+  # -- PostgreSQL database name
+  database: aivdb
+  # -- PostgreSQL username
+  username: dbadmin
+  # -- PostgreSQL password
+  password: "pasAswordA12"
+
+  # Additional datasource for security schema
+  datasource1:
+    # -- Enable second datasource for security schema
+    enabled: true
+    # -- Schema name for datasource1
+    schema: security
+
+  # JNDI datasource configuration
+  jndi:
+    # -- Enable JNDI datasource
+    enabled: true
+    # -- JNDI name
+    name: jdbc/ActiveIDB
+
+# Kafka Configuration
+# Optional - disabled by default (for single node mode)
+# Enable for AIV cluster mode (multi node)
+kafka:
+  # -- Enable Kafka (required for cluster mode)
+  enabled: false
+  # -- Kafka bootstrap servers
+  bootstrapServers: kafka:9092
+  # -- Kafka username (if SASL auth is enabled)
+  username: ""
+  # -- Kafka password (if SASL auth is enabled)
+  password: ""
+  # -- SASL mechanism (e.g., PLAIN, SCRAM-SHA-256)
+  saslMechanism: ""
+  consumer:
+    # -- Kafka consumer group ID
+    groupId: task-consumer-group
+    # -- Auto offset reset strategy
+    autoOffsetReset: earliest
+  producer:
+    # -- Kafka producer key serializer
+    keySerializer: org.apache.kafka.common.serialization.StringSerializer
+    # -- Kafka producer value serializer
+    valueSerializer: com.aiv.cluster.MapSerializer
+
+# Application Configuration
+application:
+  server:
+    # -- Application server port
+    port: 80
+    # -- Application context path
+    contextPath: /aiv
+    compression:
+      # -- Enable response compression
+      enabled: true
+
+  storage:
+    # -- Image storage location
+    imgLocation: /opt/repository/images/
+    # -- Application files location
+    appLocation: /opt/repository/APP/
+    # -- Repository root location
+    repositoryLocation: /opt/repository
+    # -- Log directory
+    logDir: /opt/logs
+    # -- Delivery files location
+    deliveryLocation: /opt/repository/delivery
+
+  security:
+    # -- Security implementation class
+    securityClass: com.security.services.SimpleAuthImpl
+    # -- Enable Jira authentication
+    isJira: false
+
+  # Application security keys
+  # Leave empty to auto-generate secure random values
+  secrets:
+    # -- Encryption key for stoken decryption (auto-generated if empty)
+    slatKey: ""
+    # -- IV spec key for stoken (auto-generated if empty)
+    ivspec: ""
+    # -- Internal token for microservices auth (auto-generated if empty)
+    internalToken: ""
+    # -- Embed encryption key (auto-generated if empty)
+    embedEkey: ""
+    # -- Embed token key (auto-generated if empty)
+    embedTokenKey: ""
+
+  task:
+    manager:
+      # -- Task manager mode: single (no Kafka) or multi (requires Kafka)
+      mode: single
+    kafka:
+      # -- Kafka topic retention in milliseconds
+      retentionMs: 60000
+      topic:
+        # -- Kafka topic name
+        name: task-topic
+        # -- Number of partitions
+        partitions: 2
+        # -- Replication factor
+        replicationFactor: 1
+
+  embed:
+    # -- Use custom token for embed
+    iscustomtoken: false
+
+  liquibase:
+    aiv:
+      # -- Enable Liquibase for AIV schema
+      enabled: true
+      # -- Liquibase changelog file for AIV
+      changeLog: classpath:db/changelog/db.changelog-aiv.sql
+    security:
+      # -- Enable Liquibase for security schema
+      enabled: true
+      # -- Liquibase changelog file for security
+      changeLog: classpath:db/changelog/db.changelog-security.sql
+
+# Service configuration
+service:
+  type: LoadBalancer
+  port: 80
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-internal: "false"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:ap-southeast-1:417447013272:certificate/your-certificate-id"
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+# Volume mounts configuration
 volumeMounts:
+- mountPath: /opt/repository/econfig/application.yml
+  subPath: application.yml
+  name: files
 - mountPath: /opt/repository/econfig/logback.xml
   subPath: logback.xml
   name: files
 
+# Configuration files
+# Note: application.yml will be templated in configmap.yaml
+# logback.xml is kept as-is
 files:
   logback.xml: |
     <?xml version="1.0" encoding="UTF-8"?>
@@ -32,84 +233,47 @@ files:
       <springProperty scope="context" name="jsonlogs" source="app.logs.jsonlogs"/>
       <springProperty scope="context" name="showdept" source="app.logs.showdept"/>
       <springProperty scope="context" name="showtraceid" source="app.logs.showtraceid"/>
-
       <logger name="core" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
       </logger>
-
       <logger name="db" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
       </logger>
-
       <logger name="data" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
       </logger>
-
       <logger name="birt" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
       </logger>
-
       <logger name="rest" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
       </logger>
-
       <logger name="jasper" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
       </logger>
-
+      <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+          <layout class="ch.qos.logback.classic.PatternLayout">
+              <Pattern>%d %p %c{1} [%t] %m%n</Pattern>
+          </layout>
+      </appender>
       <root level="INFO">
         <appender-ref ref="CONSOLE"/>
       </root>
 
     </configuration>
 
-base64_files: {}
-
-# Driver uploader configuration
-driver_updater:
-  enabled: false
-  githubRepo: "aiv-code/docker-aiv"
-  githubBranch: "feat/helm"
-  image:
-    repository: "ghcr.io/giap-aivhub/docker-aiv"
-    tag: "helper"
-    pullPolicy: "IfNotPresent"
-  path: "/opt/config/drivers"
-  drivers:
-    - "aalto-xml-1.3.2.jar"
-    - "bigqueryloader-3.0.0.jar"
-    - "common-3.0.0.jar"
-    - "commondata-3.0.4.jar"
-    - "csvloader-3.0.0.jar"
-    - "dataendpointloader-3.0.0.jar"
-    - "datasource-3.0.0.jar"
-    - "dremioloader-3.0.0.jar"
-    - "excelloader-3.0.0.jar"
-    - "externalserviceloader-3.0.0.jar"
-    - "fastexcel-0.14.0.jar"
-    - "fastexcel-reader-0.14.0.jar"
-    - "flight-sql-jdbc-driver-10.0.0.jar"
-    - "googlesheetloader-3.0.0.jar"
-    - "influxdb-client-core-6.8.0.jar"
-    - "influxdb-client-java-6.8.0.jar"
-    - "influxdb-client-utils-6.8.0.jar"
-    - "influxdb-java-2.23.jar"
-    - "jsonloader-3.0.0.jar"
-    - "mongodbloader-3.0.0.jar"
-    - "ngdbc-2.24.7.jar"
-    - "ojdbc8-21.7.0.0.jar"
-    - "postgresql-42.7.2.jar"
-    - "security-core-3.0.0.jar"
-    - "security-postgres-3.0.2.jar"
-    - "serverscriptloader-3.0.0.jar"
-    - "unifiedlayer-3.0.11.jar"
 # Persistence configuration
 persistence:
   enabled: false
+  storageClassName: gp3
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  annotations: {}
   storageClass:
-    create: false
+    create: true
     name: gp3
-    provisioner: ebs.csi.eks.amazonaws.com
+    provisioner: ebs.csi.aws.com
     parameters:
       type: gp3
       fsType: ext4
@@ -118,108 +282,23 @@ persistence:
     annotations:
       storageclass.kubernetes.io/is-default-class: "true"
 
-  # storageClassName: gp3
-  accessModes:
-    - ReadWriteOnce
-  size: 10Gi
-  mountPath: /opt
-  annotations: {}
+# Driver updater configuration
+driver_updater:
+  enabled: false
+  securityContext: null
 
-# AI component configuration
+# Base64 encoded files (for secrets)
+base64_files: {}
+
+# AI deployment configuration (optional additional deployment)
 ai:
   enabled: false
   replicaCount: 1
   image:
-    repository: jits023/aiv-ai
-    tag: 6.3.0
+    repository: ""
+    tag: ""
     pullPolicy: IfNotPresent
-  containerPort: 8001
-  env:
-    AIV_JUPYTER: aiv-jupyter
-    AIV_TOKEN: aivhub
-  service:
-    type: LoadBalancer
-    port: 8001
+  containerPort: 8080
+  env: {}
   persistence:
     enabled: false
-    storageClass:
-      create: true
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-service:
-  type: ClusterIP
-  port: 80
-
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
-livenessProbe:
-  tcpSocket:
-    port: http
-  initialDelaySeconds: 15
-  timeoutSeconds: 20
-
-readinessProbe:
-  tcpSocket:
-    port: http
-  initialDelaySeconds: 5
-  timeoutSeconds: 1
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}

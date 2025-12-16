@@ -73,3 +73,108 @@ Usage:
         {{- tpl (.value | toYaml) .context }}
     {{- end }}
 {{- end -}}
+
+{{/*
+PostgreSQL primary datasource URL
+*/}}
+{{- define "aiv.postgresql.url" -}}
+{{- if .Values.postgresql.enabled -}}
+jdbc:postgresql://{{ .Values.postgresql.host }}:{{ .Values.postgresql.port }}/{{ .Values.postgresql.database }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+PostgreSQL datasource1 URL (security schema)
+*/}}
+{{- define "aiv.postgresql.datasource1.url" -}}
+{{- if and .Values.postgresql.enabled .Values.postgresql.datasource1.enabled -}}
+jdbc:postgresql://{{ .Values.postgresql.host }}:{{ .Values.postgresql.port }}/{{ .Values.postgresql.database }}?currentSchema={{ .Values.postgresql.datasource1.schema }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+PostgreSQL JNDI configuration JSON
+*/}}
+{{- define "aiv.postgresql.jndi.config" -}}
+{{- if and .Values.postgresql.enabled .Values.postgresql.jndi.enabled -}}
+{"jndi-name":"{{ .Values.postgresql.jndi.name }}","driver-class-name":"org.postgresql.Driver","url":"{{ include "aiv.postgresql.url" . }}","username":"{{ .Values.postgresql.username }}","password":"{{ .Values.postgresql.password }}"}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Kafka bootstrap servers
+*/}}
+{{- define "aiv.kafka.bootstrapServers" -}}
+{{- if .Values.kafka.enabled -}}
+{{ .Values.kafka.bootstrapServers }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate random hex string (16 chars)
+*/}}
+{{- define "aiv.generateHex" -}}
+{{- randAlphaNum 16 | lower -}}
+{{- end -}}
+
+{{/*
+Generate random base64 token
+*/}}
+{{- define "aiv.generateToken" -}}
+{{- randAlphaNum 32 | b64enc -}}
+{{- end -}}
+
+{{/*
+Get or generate slatKey
+*/}}
+{{- define "aiv.slatKey" -}}
+{{- if .Values.application.secrets.slatKey -}}
+{{ .Values.application.secrets.slatKey }}
+{{- else -}}
+{{ include "aiv.generateHex" . }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get or generate ivspec
+*/}}
+{{- define "aiv.ivspec" -}}
+{{- if .Values.application.secrets.ivspec -}}
+{{ .Values.application.secrets.ivspec }}
+{{- else -}}
+{{ include "aiv.generateHex" . }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get or generate internalToken
+*/}}
+{{- define "aiv.internalToken" -}}
+{{- if .Values.application.secrets.internalToken -}}
+{{ .Values.application.secrets.internalToken }}
+{{- else -}}
+{{ include "aiv.generateToken" . }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get or generate embedEkey
+*/}}
+{{- define "aiv.embedEkey" -}}
+{{- if .Values.application.secrets.embedEkey -}}
+{{ .Values.application.secrets.embedEkey }}
+{{- else -}}
+{{ randAlphaNum 20 }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get or generate embedTokenKey
+*/}}
+{{- define "aiv.embedTokenKey" -}}
+{{- if .Values.application.secrets.embedTokenKey -}}
+{{ .Values.application.secrets.embedTokenKey }}
+{{- else -}}
+{{ include "aiv.generateToken" . }}
+{{- end -}}
+{{- end -}}

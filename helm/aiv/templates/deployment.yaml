@@ -101,8 +101,10 @@ spec:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
+          {{- if or .Values.envs .Values.env }}
           env:
-            {{ range $key, $val := .Values.envs }}
+            # Custom environment variables from values.envs
+            {{- range $key, $val := .Values.envs }}
             - name: {{ $key }}
             {{- if and $val (kindIs "slice" $val) }}
               {{- $val | toYaml | nindent 14 }}
@@ -114,11 +116,11 @@ spec:
               value: {{ $val | quote }}
             {{- end }}
             {{- end }}
-
           {{- if .Values.env }}
           envFrom:
             - secretRef:
-                name: {{ include "aiv.fullname" . }}
+                name: {{ include "aiv.fullname" . }}-business-env
+          {{- end }}
           {{- end }}
           volumeMounts:
             {{- if .Values.volumeMounts }}
