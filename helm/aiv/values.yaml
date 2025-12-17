@@ -6,8 +6,8 @@ replicaCount: 1
 
 # Image configuration
 image:
-  repository: ""  # Set your image repository
-  tag: ""  # Overrides the image tag (default is chart appVersion)
+  repository: "aivhub/aiv"  # Set your image repository
+  tag: "6.4.23"  # Overrides the image tag (default is chart appVersion)
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -31,10 +31,18 @@ securityContext: {}
 resources: {}
 
 # Liveness probe configuration
-livenessProbe: {}
+livenessProbe:
+  tcpSocket:
+    port: http
+  initialDelaySeconds: 15
+  timeoutSeconds: 20
 
-# Readiness probe configuration
-readinessProbe: {}
+# readinessProbe
+readinessProbe:
+  tcpSocket:
+    port: http
+  initialDelaySeconds: 5
+  timeoutSeconds: 1
 
 # Custom command
 command: []
