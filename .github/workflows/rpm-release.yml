@@ -120,24 +120,21 @@ jobs:
         body: |
           RPM package release for AIV version ${{ env.VERSION }}-${{ env.RELEASE }}
 
-          # Installation Instructions
-          Switch to root user
+          - Download aiv latest in https://github.com/aiv-code/docker-aiv/releases
 
-          ## Download aiv latest in https://github.com/aiv-code/docker-aiv/releases
-
-          ## Install AIV
+          - Install AIV
           ```bash
-          rpm -i aiv*.rpm
-          ```
-          
-          ## Start and enable the AIV service
-          ```bash
-          systemctl enable --now aiv.service
+          sudo rpm -i aiv*.rpm
           ```
 
-          ## Update AIV
+          - Start and enable the AIV service
+          ```bash
+          sudo systemctl enable --now aiv.service
           ```
-          rpm -U aiv*.rpm
+
+          - Update AIV
+          ```
+          sudo rpm -U aiv*.rpm
           ```
 
         files: |
