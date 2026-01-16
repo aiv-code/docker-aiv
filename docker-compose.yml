@@ -73,7 +73,6 @@ services:
     volumes:
       - ./config:/opt/config:rw
       - ./repository:/opt/repository:rw
-      - ./logs:/opt/logs:rw
       - ./dataloc:/usr/local/temp:rw
 
   aiv-ai: 
