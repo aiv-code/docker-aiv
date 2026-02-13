@@ -234,7 +234,14 @@
             "required" : false,
             "type" : "text",
             "placeholder" : ""
-         }
+         }, {
+		      "name" : "pipeLineMax",
+		      "displayName" : "Max Jobs",
+		      "defaultValue" : "20",
+		      "required" : true,
+		      "type" : "text",
+		      "placeholder" : ""
+		    }
       ]
    },
    "cluster":{
