@@ -241,7 +241,28 @@
 		      "required" : true,
 		      "type" : "text",
 		      "placeholder" : ""
-		    }
+		    },
+		   {
+		      "name" : "aiv_chatbot",
+		      "displayName" : "AIV Chatbot",
+		      "defaultValue" : false,
+		      "type" : "radio",
+		      "values" : [ {
+		        "key" : false,
+		        "value" : false
+		      }, {
+		        "key" : true,
+		        "value" : true
+		      } ],
+		      "placeholder" : ""
+    	}, {
+		      "name" : "aiv_chatbot_url",
+		      "displayName" : "AIV Chatbot (URL)",
+		      "defaultValue" : "https://chatbot.aivhub.com",
+		      "required" : true,
+		      "type" : "text",
+		      "placeholder" : ""
+   	 	} 
       ]
    },
    "cluster":{
