@@ -267,7 +267,7 @@
    },
    "cluster":{
       "checked":false,
-      "tempChecked": false,
+      "tempChecked": true,
       "description":"AIV Clustering",
       "properties":[
          {
@@ -337,7 +337,7 @@
    },
    "email":{
       "checked":false,
-      "tempChecked": false,
+      "tempChecked": true,
       "description":"Email Configuration",
       "properties":[
          {
@@ -548,7 +548,7 @@
    },
    "sso":{
       "checked":false,
-	  "tempChecked": false,
+	  "tempChecked": true,
       "description":"SSO Configuration",
       "properties":[
          {
@@ -642,7 +642,7 @@
       ],
       "user_default":{
          "checked":false,
-		 "tempChecked": false,
+		 "tempChecked": true,
          "description":"User Defaults",
          "properties":[
             {
@@ -1258,7 +1258,7 @@
       },
       "role_default":{
          "checked":false,
-		 "tempChecked": false,
+		 "tempChecked": true,
          "description":"Role Defaults",
          "properties":[
             {
