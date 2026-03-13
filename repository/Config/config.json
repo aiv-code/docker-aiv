@@ -262,7 +262,14 @@
 		      "required" : true,
 		      "type" : "text",
 		      "placeholder" : ""
-   	 	} 
+   	 	} , {
+		      "name" : "memory_limit",
+		      "displayName" : "Memory Limit",
+		      "defaultValue" : "80",
+		      "required" : false,
+		      "type" : "text",
+		      "placeholder" : ""
+    	}
       ]
    },
    "cluster":{
