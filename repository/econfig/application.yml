@@ -64,6 +64,7 @@ app:
   ivspec: fedcba9876543210
   ltoken: aiv_jwt_secret_f83Kf92Jd8sLq7WzYxP4TnR6bH1M5c
   ekey: 0123456789abcdef0123456789abcdef
+  eurl: http://localhost:8080
   imgLocation: ${aiv_base}/repository/images/
   appLocation: ${aiv_base}/repository/APP/
   repositoryLocation: ${aiv_base}/repository
