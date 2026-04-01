@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><DATASOURCE sourcetype="parquet"><DATASET existingFileCategory="DATASETS" existingFileId="66047" existingFileName="Education_dataset" existingFileOwner="Admin" existingFilePath="/education/" existingFileType="parquet" name="Education_enrollment_percentage" type="NormalDataset"><QUERY>SELECT
+COUNT(CASE
+WHEN Application_Status = 'Enrolled'
+THEN Application_ID
+END) * 100.0
+/
+COUNT(CASE
+WHEN Application_Status IN ('Offered', 'Enrolled')
+THEN Application_ID
+END) AS enrollment_conversion_percentage
+FROM Education_dataset;</QUERY><PARAMETERS/><METADATA>[{"alias":"enrollment_conversion_percentage","type":"Double","key":"enrollment_conversion_percentage","tableName":"","displayName":"","operator":null,"ctype":"","dtype":"","updatedIndex":0,"index":0}]</METADATA><HIERARCHIES>{}</HIERARCHIES></DATASET></DATASOURCE>

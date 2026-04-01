@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><DATASOURCE sourcetype="parquet"><DATASET existingFileCategory="DATASETS" existingFileId="66047" existingFileName="Education_dataset" existingFileOwner="Admin" existingFilePath="/education/" existingFileType="parquet" name="Education_firstgeneration" type="NormalDataset"><QUERY>SELECT
+COUNT(CASE
+WHEN First_Generation = 'Yes'
+THEN Application_ID
+END) * 100.0
+/
+COUNT(Application_ID) AS first_generation_percentage
+FROM Education_dataset</QUERY><PARAMETERS/><METADATA>[{"alias":"first_generation_percentage","type":"Double","key":"first_generation_percentage","tableName":"","displayName":"","operator":null,"ctype":"","dtype":"","updatedIndex":0,"index":0}]</METADATA><HIERARCHIES>{}</HIERARCHIES></DATASET></DATASOURCE>
