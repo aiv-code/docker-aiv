@@ -76,6 +76,7 @@ app:
   noofreports: 10
   ssoredirect: false # ture is we use external logout
   marketplaceurl: https://marketplace.aivhub.com/api
+  WEBHOOK_SECRET: B4O6XlaeBLAZVSo5g+GrVDz9BM/LcD5EMn6OFoaCIY1pL4qDk9pqdqlnR7Tv7zJ4
   task:
     kafka:
       retention.ms: 60000
