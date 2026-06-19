@@ -77,6 +77,8 @@ app:
   securityClass: com.security.services.SimpleAuthImpl #com.simple.services.SimpleAuthImpl/com.utility.JiraAuthImpl
   isJira: false
   noofreports: 10
+  marketplaceurl: https://marketplace.aivhub.com/api
+  WEBHOOK_SECRET: B4O6XlaeBLAZVSo5g+GrVDz9BM/LcD5EMn6OFoaCIY1pL4qDk9pqdqlnR7Tv7zJ4
   task:
     kafka:
       retention.ms: 60000
