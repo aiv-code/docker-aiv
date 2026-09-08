@@ -5,11 +5,16 @@ server:
     min-response-size: 1024
   servlet:
     context-path: /aiv
-  port: ${aiv_port}
+  port: ${aiv_port:8080}
+  forward-headers-strategy: framework
 
 spring:
   autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+    exclude:
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.metrics.mongo.MongoMetricsAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   resources:
     static-locations: classpath:/static/,file:///${aiv_base}/repository/images/
   jackson:
@@ -17,30 +22,30 @@ spring:
       WRITE_DATES_AS_TIMESTAMPS: false
     time-zone: UTC
   datasource:
-    url: ${aiv_db_url} # database for aiv schema
+    url: ${aiv_db_url}
     username: ${aiv_db_user}
-    password: ${aiv_db_password} 
+    password: ${aiv_db_password}
     driverClassName: org.postgresql.Driver
   datasource1:
-    url: ${security_db_url} # database for security schema
+    url: ${security_db_url}
     username: ${security_db_user}
-    password: ${security_db_password} 
+    password: ${security_db_password}
     driverClassName: org.postgresql.Driver
   mvc:
     pathmatch:
       matching-strategy: ANT_PATH_MATCHER
   jpa:
-    hibernate: 
-      ddl-auto: update
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
   liquibase:
-   aiv:
-     enabled: true
-     change-log: classpath:db/changelog/db.changelog-aiv.sql
-   security:
-     enabled: true
-     change-log: classpath:db/changelog/db.changelog-security.sql
+    aiv:
+      enabled: ${LIQUIBASE_AIV_ENABLED:true}
+      change-log: classpath:db/changelog/db.changelog-aiv.sql
+    security:
+      enabled: ${LIQUIBASE_SECURITY_ENABLED:false}
+      change-log: classpath:db/changelog/db.changelog-security.sql
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: task-consumer-group
       auto-offset-reset: earliest
@@ -50,61 +55,81 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: com.aiv.cluster.MapSerializer
 
-#For JNDI Datasources
 datasources:
   dslist[0]: '{"jndi-name":"jdbc/ActiveIDB","driver-class-name":"org.postgresql.Driver","url":"${aiv_db_url}","username":"${aiv_db_user}","password":"${aiv_db_password}"}'
 
-#Application some default values
-# slatKey -> For stoken decryption SecretKey
-# ivspec -> For stoken Iv Spec Key
-# securityClass -> which security class we need to use for authentication and user/roles details
-# isJira -> Are we using Jira authentication or not
 app:
   slatKey: 0123456789abcdef
   ivspec: fedcba9876543210
   ltoken: aiv_jwt_secret_f83Kf92Jd8sLq7WzYxP4TnR6bH1M5c
   ekey: 0123456789abcdef0123456789abcdef
   eurl: https://aivlic.app.oneaiv.com
+  enckey: 0fc79bc2a4f6411ca1a9cb325ee8a3a2
+  masterkey: AiVecretKey91345
   imgLocation: ${aiv_base}/repository/images/
   appLocation: ${aiv_base}/repository/APP/
   repositoryLocation: ${aiv_base}/repository
   logDir: ${aiv_base}/logs
   deliveryLocation: ${aiv_base}/repository/delivery
   database: postgresql
-  securityClass: com.security.services.SimpleAuthImpl #com.simple.services.SimpleAuthImpl/com.utility.JiraAuthImpl
+  securityClass: unused.UniversalAuthHttp
   isJira: false
   noofreports: 10
-  ssoredirect: false # ture is we use external logout
+  ssoredirect: false
   marketplaceurl: https://marketplace.aivhub.com/api
   WEBHOOK_SECRET: B4O6XlaeBLAZVSo5g+GrVDz9BM/LcD5EMn6OFoaCIY1pL4qDk9pqdqlnR7Tv7zJ4
+  role: ${APP_ROLE:all}
+  universalauth:
+    api-token: ${UNIVERSALAUTH_API_TOKEN:}
+    local-verify:
+      rotation-interval-seconds: ${JWT_ACCESS_REUSE_SECONDS:900}
+  sso:
+    state-ttl-seconds: 600
+    allowed-return-path-prefixes: /aiv/,/
+    browser-session:
+      enabled: ${AIV_BROWSER_SESSION_ENABLED:true}
+      cookie-name: AIV_BROWSER_SESSION
+      max-age-seconds: ${AIV_BROWSER_SESSION_MAX_AGE:1800}
+      secure: ${AIV_BROWSER_SESSION_SECURE:false}
+      same-site: Lax
+  logs:
+    jsonlogs: true
+    showdept: true
+    showtraceid: true
   task:
     kafka:
       retention.ms: 60000
       topic:
-        topicName: task-topic       # Name of the Kafka topic
-        partitions: 2         # Number of partitions for the topic
-        replication-factor:  1
+        topicName: task-topic
+        partitions: 2
+        replication-factor: 1
     manager:
-      mode: single  # use "single" if you want to disable Kafka or multi
+      mode: single
 
-#While creating Embed token
-# ekey -> Generating Embed Encrypted insternal token.
-# tokenKey -> For generating Embed authentication token
 embed:
   ekey: ActiveInteigence
   tokenKey: H0WWWrNDCCoVKVPXMSei9/+rDJcLbgkEOXhayw790lY=
   iscustomtoken: false
-  
+
 logging:
   level:
+    root: ${LOG_LEVEL_ROOT:ERROR}
+    com.aiv: ${LOG_LEVEL_COM_AIV:INFO}
     liquibase: OFF
-  
-# Token used for MicroServices Internal Authentication 
+
 aiv-internalToken: ActiveIntelligence
 management.metrics.mongo.command.enabled: false
 management.metrics.mongo.connectionpool.enabled: false
 
-#jasper.connection: true,java:comp/env/jdbc/classicmodels
-# Default Jndi connnection Datasources
-# external.db.1: jdbc,mysql,ClassicModels,true,java:comp/env/jdbc/classicmodels
-#external.db.2: olap,SampleData,mondrian.olap4j.MondrianOlap4jDriver,jdbc:mondrian:DataSource,D:/Repositories/AIV/tomcat/data/sampledata.mondrian.xml,true,org.hsqldb.jdbcDriver,java:comp/env/jdbc/SampleData
+general:
+  location: ${aiv_base}/repository/econfig
+
+# Auth client — server-side URL is Docker service; browser URL from AIV_SSO_PUBLIC_BASE_URL env.
+universalauth:
+  base-url: ${AIV_SUPERSECURITY:http://${HOST_IP}:${AUTH_PORT}}
+  client-id: ${AIV_SSO_CLIENT_ID:aiv6}
+  public-base-url: ${AIV_SSO_PUBLIC_BASE_URL:http://${HOST_IP}:${AIV_PORT}/aiv}
+  callback-path: /sso/callback
+  sso-enabled: ${AIV_SSO_REDIRECT_ENABLED:true}
+  security:
+    filter-enabled: false

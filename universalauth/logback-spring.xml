@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  UniversalAuth channel logging (aligned with aiv6).
+  Log folder: app.logDir (default logs). Override with env LOG_DIR or -DLOG_DIR=...
+
+  Active files (4):
+    core.log     — general execution, Spring/root startup, + remapped gateway/rest/user
+    security.log — auth / security (synchronous)
+    db.log       — SQL / database
+    data.log     — dataset / datasource (if used)
+
+  SECURITY is synchronous so audit lines are never dropped.
+  Root (Spring Boot "Started …", uncategorized packages) also writes to core.log.
+-->
+<configuration scan="false">
+
+    <springProperty scope="context" name="APP_LOG_DIR" source="app.logDir" defaultValue="logs"/>
+    <springProperty scope="context" name="serviceName" source="spring.application.name" defaultValue="universalauth"/>
+    <springProperty scope="context" name="env" source="app.logs.env" defaultValue="development"/>
+
+    <property name="LOG_DIR" value="${LOG_DIR:-${APP_LOG_DIR}}"/>
+    <property name="MAX_FILE_SIZE" value="50MB"/>
+    <property name="TOTAL_SIZE_CAP" value="2GB"/>
+    <property name="MAX_HISTORY" value="30"/>
+
+    <property name="CONSOLE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} [trace=%X{traceid:-}] [dept=%X{deptCode:-}] - %msg%n%ex"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- CORE (+ remapped gateway/rest/user) -->
+    <appender name="CORE-JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/core.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archived/core.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"${serviceName}","env":"${env}","channel":"core"}</customFields>
+        </encoder>
+    </appender>
+    <appender name="CORE-ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="CORE-JSON"/>
+        <queueSize>2048</queueSize>
+        <neverBlock>true</neverBlock>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+    <logger name="core" level="INFO" additivity="false">
+        <appender-ref ref="CORE-ASYNC"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+    <logger name="gateway" level="INFO" additivity="false">
+        <appender-ref ref="CORE-ASYNC"/>
+    </logger>
+    <logger name="rest" level="INFO" additivity="false">
+        <appender-ref ref="CORE-ASYNC"/>
+    </logger>
+    <logger name="user" level="INFO" additivity="false">
+        <appender-ref ref="CORE-ASYNC"/>
+    </logger>
+
+    <!-- SECURITY (audit-sensitive — isolated file, long retention, never dropped) -->
+    <appender name="SECURITY-JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/security.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archived/security.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <totalSizeCap>10GB</totalSizeCap>
+            <maxHistory>365</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"${serviceName}","env":"${env}","channel":"security"}</customFields>
+        </encoder>
+    </appender>
+    <logger name="security" level="INFO" additivity="false">
+        <appender-ref ref="SECURITY-JSON"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- DB -->
+    <appender name="DB-JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/db.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archived/db.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"${serviceName}","env":"${env}","channel":"db"}</customFields>
+        </encoder>
+    </appender>
+    <appender name="DB-ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="DB-JSON"/>
+        <queueSize>2048</queueSize>
+        <neverBlock>true</neverBlock>
+    </appender>
+    <logger name="db" level="INFO" additivity="false">
+        <appender-ref ref="DB-ASYNC"/>
+    </logger>
+
+    <!-- DATA -->
+    <appender name="DATA-JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/data.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archived/data.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"${serviceName}","env":"${env}","channel":"data"}</customFields>
+        </encoder>
+    </appender>
+    <appender name="DATA-ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="DATA-JSON"/>
+        <queueSize>2048</queueSize>
+        <neverBlock>true</neverBlock>
+    </appender>
+    <logger name="data" level="INFO" additivity="false">
+        <appender-ref ref="DATA-ASYNC"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="CORE-ASYNC"/>
+    </root>
+
+</configuration>

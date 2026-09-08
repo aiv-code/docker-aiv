@@ -33,10 +33,46 @@ services:
       db:
         condition: service_healthy
 
-  aiv: 
+  universalauth:
+    platform: linux/amd64
+    container_name: universalauth
+    image: aivhub/universalauth:7.0.0
+    restart: always
+    command: >
+      java -Duser.timezone=${APP_TIMEZONE} -jar app-exec.jar
+      --spring.config.location=file:/config/application.yml
+      --logging.config=file:/config/logback-spring.xml
+    ports:
+      - "${AUTH_PORT}:8080"
+    environment:
+      DATABASE_URL: ${AIV_DB_URL}
+      DATABASE_USERNAME: ${AIV_DB_USER}
+      DATABASE_PASSWORD: ${AIV_DB_PASSWORD}
+      AUTH_UI_BASE_URL: ${AUTH_PUBLIC_URL}
+      AUTH_SSO_AIV6_CALLBACK: ${AIV_PUBLIC_URL}/aiv/sso/callback
+      AUTH_CORS_AIV_ORIGIN_PATTERN: http://${HOST_IP}:[*]
+      SERVER_PORT: 8080
+      LOG_DIR: /app/logs
+      LOG_ENV: docker
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 90s
+    volumes:
+      - ./universalauth/application.yml:/config/application.yml:ro
+      - ./universalauth/logback-spring.xml:/config/logback-spring.xml:ro
+      - ./logs/universalauth:/app/logs:rw
+
+  aiv:
     platform: linux/amd64
     container_name: aiv
-    image: aivhub/aiv:6.5.40
+    image: aivhub/aiv:7.0.1
+    restart: always
     command: >
       /bin/bash -c '
       if [ ! -f "/opt/repository/econfig/application.yml" ]; then
@@ -48,38 +84,76 @@ services:
         echo "Warning: Drivers directory not found at /opt/config/drivers";
       fi &&
       echo "Starting AIV application..." &&
-      java --add-opens=java.base/java.nio=ALL-UNNAMED 
-      --add-exports=java.base/sun.nio.ch=ALL-UNNAMED 
-      --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/sun.util.calendar=ALL-UNNAMED 
-      -Dspring.config.location=/opt/repository/econfig/application.yml 
-      -Dloader.path=/opt/config/drivers 
+      java --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED
+      --add-exports=java.base/sun.nio.ch=ALL-UNNAMED
+      --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/sun.util.calendar=ALL-UNNAMED
+      -Dspring.config.location=/opt/repository/econfig/application.yml
+      -Dlogging.config=/opt/repository/econfig/logback-spring.xml
+      -Dloader.path=/opt/config/drivers
+      -Duser.timezone=${APP_TIMEZONE}
       -Dspark.io.mode.default=NIO
-      -cp /opt/repository/econfig/:run.jar 
+      -cp /opt/repository/econfig/:run.jar
       org.springframework.boot.loader.launch.PropertiesLauncher'
-    ports: 
-      - "8080:8080"
+    ports:
+      - "${AIV_PORT}:8080"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      universalauth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/aiv/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
     environment:
       aiv_port: 8080
       aiv_base: /opt
-      aiv_db_url: jdbc:postgresql://db:5432/postgres
+      aiv_db_url: ${AIV_DB_URL}
       aiv_db_user: ${AIV_DB_USER}
       aiv_db_password: ${AIV_DB_PASSWORD}
-      security_db_url: jdbc:postgresql://db:5432/postgres?currentSchema=security
+      security_db_url: ${AIV_DB_URL}?currentSchema=security
       security_db_user: ${AIV_DB_USER}
       security_db_password: ${AIV_DB_PASSWORD}
+      AIV_SUPERSECURITY: ${AUTH_PUBLIC_URL}
+      AIV_SSO_PUBLIC_BASE_URL: ${AIV_PUBLIC_URL}/aiv
+      AIV_SSO_CLIENT_ID: aiv6
+      AIV_SSO_REDIRECT_ENABLED: "true"
+      JWT_ACCESS_REUSE_SECONDS: "900"
+      LOG_DIR: /opt/logs
+      LOG_ENV: docker
+      LIQUIBASE_AIV_ENABLED: ${LIQUIBASE_AIV_ENABLED:-true}
+      LIQUIBASE_SECURITY_ENABLED: "false"
+      AUTH_PROVISIONING_LDAP_ENABLED: "false"
     volumes:
       - ./config:/opt/config:rw
       - ./repository:/opt/repository:rw
       - ./logs:/opt/logs:rw
       - ./dataloc:/usr/local/temp:rw
 
-  aiv-ai: 
+  # universalauth.base-url is used for BOTH the browser SSO redirect and the
+  # server-side token exchange, so it must resolve from the browser AND from
+  # inside the aiv container. This sidecar shares aiv's network namespace and
+  # listens on aiv's own localhost:${AUTH_PORT}, forwarding to universalauth.
+  # That lets AUTH_PUBLIC_URL stay http://localhost:8087 for both consumers.
+  authbridge:
+    image: alpine/socat:latest
+    container_name: aiv-authbridge
+    restart: always
+    network_mode: "service:aiv"
+    depends_on:
+      aiv:
+        condition: service_started
+    command: >-
+      TCP-LISTEN:${AUTH_PORT:-8087},fork,reuseaddr,bind=127.0.0.1
+      TCP:universalauth:8080
+
+  aiv-ai:
     container_name: aiv-ai
-    image: aivhub/aiv-ai:6.4.13
-    ports: 
-      - "8001:8001"
+    image: aivhub/aiv-ai:7.0.0.0
+    ports:
+      - "${AIV_AI_PORT}:8001"
     environment:
       - AIV_JUPYTER=aiv-jupyter
       - AIV_TOKEN=aivhub

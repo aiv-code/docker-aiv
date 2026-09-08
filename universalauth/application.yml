@@ -1,0 +1,135 @@
+spring:
+  application:
+    name: universalauth
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://db:5432/postgres}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DATABASE_POOL_MAX:10}
+      minimum-idle: ${DATABASE_POOL_MIN:5}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: security
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    schemas: security
+    default-schema: security
+
+jwt:
+  # HMAC lives in DB (runtime.jwt.secret). Optional pin: env JWT_SECRET.
+  # Access token lifetime always comes from DB idle (ai_session_policy). No jwt.expiration.
+  # Crypto upper bound for refresh JWT only. Idle session still wins (refresh cannot revive after idle logout).
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION_SECONDS:604800}
+  issuer: ${JWT_ISSUER:UniversalAuth}
+  # Internal: reuse same access JWT this long before Auth rotates it. Not a session timeout. Cap = idle/2.
+  # Must match aiv6 app.universalauth.local-verify.rotation-interval-seconds.
+  access-token-reuse-seconds: ${JWT_ACCESS_REUSE_SECONDS:900}
+
+auth:
+  # Same-origin (login SPA on this Auth host) is always allowed.
+  # Cross-origin AIV UI (host-mapped port) for browser calls from AIV to Auth.
+  cors:
+    # Set AUTH_CORS_AIV_ORIGIN_PATTERN in docker-compose (e.g. http://192.168.1.10:[*]).
+    allowed-origin-patterns:
+      - ${AUTH_CORS_AIV_ORIGIN_PATTERN:http://${HOST_IP}:[*]}
+  provider:
+    default-type: ${AUTH_DEFAULT_PROVIDER:DATABASE}
+  config:
+    # Set in production to encrypt clientSecret / bindPassword in config_data at rest.
+    encryption-key: ${AUTH_CONFIG_ENCRYPTION_KEY:}
+  login:
+    # Optional RSA-OAEP so password is not plain in DevTools; HTTPS still required in production.
+    rsa-enabled: ${AUTH_LOGIN_RSA_ENABLED:true}
+    # PEM lives in DB (runtime.login.rsa-private-key-pem). Optional pin: AUTH_LOGIN_RSA_PRIVATE_KEY_PEM.
+  migration:
+    # Legacy BI cut-over (existing AIV security schema → Auth).
+    # Auto-detect still runs if schema "security" already looks like old BI.
+    legacy-bi: ${AUTH_MIGRATE_LEGACY_BI:false}
+    legacy-bi-dry-run: ${AUTH_MIGRATE_LEGACY_BI_DRY_RUN:false}
+    repair-checksums: ${AUTH_FLYWAY_REPAIR:true}
+  oauth:
+    state-expiration-seconds: ${AUTH_OAUTH_STATE_SECONDS:600}
+    google:
+      authorization-url: ${AUTH_OAUTH_GOOGLE_AUTH_URL:https://accounts.google.com/o/oauth2/v2/auth}
+      token-url: ${AUTH_OAUTH_GOOGLE_TOKEN_URL:https://oauth2.googleapis.com/token}
+      user-info-url: ${AUTH_OAUTH_GOOGLE_USERINFO_URL:https://www.googleapis.com/oauth2/v2/userinfo}
+      scope: ${AUTH_OAUTH_GOOGLE_SCOPE:openid email profile}
+    github:
+      authorization-url: ${AUTH_OAUTH_GITHUB_AUTH_URL:https://github.com/login/oauth/authorize}
+      token-url: ${AUTH_OAUTH_GITHUB_TOKEN_URL:https://github.com/login/oauth/access_token}
+      user-info-url: ${AUTH_OAUTH_GITHUB_USERINFO_URL:https://api.github.com/user}
+      scope: ${AUTH_OAUTH_GITHUB_SCOPE:user:email read:user}
+  mfa:
+    issuer: ${AUTH_MFA_ISSUER:UniversalAuth}
+    pending-token-expiration-seconds: ${AUTH_MFA_PENDING_TOKEN_SECONDS:300}
+    backup-code-count: ${AUTH_MFA_BACKUP_CODE_COUNT:10}
+    storage-key-prefix: ${AUTH_MFA_STORAGE_KEY_PREFIX:mfa}
+  security:
+    permit-all-paths: []
+    open-access: ${AUTH_SECURITY_OPEN_ACCESS:false}
+    open-access-username: ${AUTH_SECURITY_OPEN_ACCESS_USERNAME:Admin}
+  ui:
+    # Public Auth URL browsers use — set AUTH_PUBLIC_URL in .env (host IPv4 or reverse-proxy URL).
+    base-url: ${AUTH_UI_BASE_URL:http://${HOST_IP}:${AUTH_PORT}}
+  # External-app SSO (aiv6): authorize → Auth login → one-time code → /token exchange
+  sso:
+    enabled: ${AUTH_SSO_ENABLED:true}
+    exchange-expiration-seconds: ${AUTH_SSO_EXCHANGE_SECONDS:120}
+    clients:
+      - client-id: ${AUTH_SSO_AIV6_CLIENT_ID:aiv6}
+        # Secret lives in DB (runtime.sso.client-secret.aiv6). Optional pin: AUTH_SSO_AIV6_CLIENT_SECRET.
+        allowed-return-urls:
+          - ${AUTH_SSO_AIV6_CALLBACK:http://${HOST_IP}:${AIV_PORT}/aiv/sso/callback}
+  provisioning:
+    enabled: ${AUTH_PROVISIONING_ENABLED:true}
+    oauth-enabled: ${AUTH_PROVISIONING_OAUTH_ENABLED:true}
+    ldap-enabled: ${AUTH_PROVISIONING_LDAP_ENABLED:true}
+    saml-enabled: ${AUTH_PROVISIONING_SAML_ENABLED:true}
+    oidc-enabled: ${AUTH_PROVISIONING_OIDC_ENABLED:true}
+    default-status: ${AUTH_PROVISIONING_DEFAULT_STATUS:ACTIVE}
+    default-role: ${AUTH_PROVISIONING_DEFAULT_ROLE:USER}
+    default-department: ${AUTH_PROVISIONING_DEFAULT_DEPARTMENT:Default}
+    copy-option-allocations-from-default-role: ${AUTH_PROVISIONING_COPY_OPTIONS_FROM_ROLE:true}
+    default-option-value: ${AUTH_PROVISIONING_DEFAULT_OPTION_VALUE:0}
+  saml:
+    success-redirect-uri: ${AUTH_SAML_SUCCESS_REDIRECT:${AUTH_UI_BASE_URL:http://localhost}/oauth/callback/saml}
+    exchange-expiration-seconds: ${AUTH_SAML_EXCHANGE_SECONDS:120}
+
+server:
+  port: ${SERVER_PORT}
+  forward-headers-strategy: framework
+  servlet:
+    context-path: /
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info
+  endpoint:
+    health:
+      show-details: always
+  # No LDAP in docker-compose; spring-ldap on classpath still registers LdapHealthIndicator → localhost:389 DOWN.
+  health:
+    ldap:
+      enabled: false
+
+app:
+  logDir: ${LOG_DIR:/app/logs}
+  logs:
+    env: ${LOG_ENV:docker}
+
+logging:
+  level:
+    com.universalauth: ${LOG_LEVEL_APP:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
