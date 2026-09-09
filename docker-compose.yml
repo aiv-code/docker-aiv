@@ -151,7 +151,7 @@ services:
 
   aiv-ai:
     container_name: aiv-ai
-    image: aivhub/aiv-ai:7.0.0.0
+    image: aivhub/aiv-ai:7.0.1
     ports:
       - "${AIV_AI_PORT}:8001"
     environment:
