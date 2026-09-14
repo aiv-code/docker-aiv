@@ -106,7 +106,7 @@ auth:
     exchange-expiration-seconds: ${AUTH_SAML_EXCHANGE_SECONDS:120}
 
 server:
-  port: ${SERVER_PORT}
+  port: ${AUTH_PORT}
   forward-headers-strategy: framework
   servlet:
     context-path: /

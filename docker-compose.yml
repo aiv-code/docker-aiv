@@ -43,7 +43,7 @@ services:
       --spring.config.location=file:/config/application.yml
       --logging.config=file:/config/logback-spring.xml
     ports:
-      - "${AUTH_PORT}:8080"
+      - "${AUTH_PORT}:${AUTH_PORT}"
     environment:
       DATABASE_URL: ${AIV_DB_URL}
       DATABASE_USERNAME: ${AIV_DB_USER}
@@ -51,7 +51,7 @@ services:
       AUTH_UI_BASE_URL: ${AUTH_PUBLIC_URL}
       AUTH_SSO_AIV6_CALLBACK: ${AIV_PUBLIC_URL}/aiv/sso/callback
       AUTH_CORS_AIV_ORIGIN_PATTERN: http://${HOST_IP}:[*]
-      SERVER_PORT: 8080
+      SERVER_PORT: ${AUTH_PORT:8087}
       LOG_DIR: /app/logs
       LOG_ENV: docker
     depends_on:
