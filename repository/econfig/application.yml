@@ -70,6 +70,13 @@ app:
   appLocation: ${aiv_base}/repository/APP/
   repositoryLocation: ${aiv_base}/repository
   logDir: ${aiv_base}/logs
+  # When true, delivery copies are AES-256 encrypted. Key auto-created in
+  # security.ai_app_setting (runtime.aiv.delivery-encryption-key) at aiv6 startup — not yml.
+  deliveryEncryptionEnabled: false
+  # Optional override for failure email HTML (empty = classpath email-templates/job-failure.html)
+  jobFailureEmailTemplatePath:
+  # Public UI base for deep link, e.g. https://host/aiv — leave blank until route is confirmed
+  jobFailureEmailPublicBaseUrl: ${JOB_FAILURE_EMAIL_PUBLIC_BASE_URL:http://${HOST_IP}:${AIV_PORT}/aiv}
   deliveryLocation: ${aiv_base}/repository/delivery
   database: postgresql
   securityClass: unused.UniversalAuthHttp
