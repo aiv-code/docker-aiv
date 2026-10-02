@@ -103,6 +103,12 @@ app:
     jsonlogs: true
     showdept: true
     showtraceid: true
+  partitioning:
+    enabled: ${AIV_PARTITIONING_ENABLED:true}
+    cadence: ${AIV_PARTITIONING_CADENCE:monthly} 
+  liquibase:
+    # One-shot sync for manual DBs. Default false. Requires spring.liquibase.aiv.enabled=true as well.
+    changelog-sync: ${AIV_LIQUIBASE_CHANGELOG_SYNC:false}
   task:
     kafka:
       retention.ms: 60000
