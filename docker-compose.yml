@@ -71,7 +71,7 @@ services:
   aiv:
     platform: linux/amd64
     container_name: aiv
-    image: aivhub/aiv:7.0.7
+    image: aivhub/aiv:7.0.8
     restart: always
     command: >
       /bin/bash -c '
