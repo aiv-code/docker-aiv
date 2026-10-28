@@ -36,7 +36,7 @@ services:
   universalauth:
     platform: linux/amd64
     container_name: universalauth
-    image: aivhub/universalauth:7.0.12
+    image: aivhub/universalauth:7.0.13
     restart: always
     command: >
       java -Duser.timezone=${APP_TIMEZONE} -jar app-exec.jar
