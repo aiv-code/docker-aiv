@@ -32,7 +32,7 @@ jwt:
   refresh-expiration: ${JWT_REFRESH_EXPIRATION_SECONDS:604800}
   issuer: ${JWT_ISSUER:UniversalAuth}
   # Internal: reuse same access JWT this long before Auth rotates it. Not a session timeout. Cap = idle/2.
-  # Must match aiv6 app.universalauth.local-verify.rotation-interval-seconds.
+  # Must match aiv app.universalauth.local-verify.rotation-interval-seconds.
   access-token-reuse-seconds: ${JWT_ACCESS_REUSE_SECONDS:900}
 
 auth:
@@ -81,15 +81,15 @@ auth:
   ui:
     # Public Auth URL browsers use — set AUTH_PUBLIC_URL in .env (host IPv4 or reverse-proxy URL).
     base-url: ${AUTH_UI_BASE_URL:http://${HOST_IP}:${AUTH_PORT}}
-  # External-app SSO (aiv6): authorize → Auth login → one-time code → /token exchange
+  # External-app SSO (aiv): authorize → Auth login → one-time code → /token exchange
   sso:
     enabled: ${AUTH_SSO_ENABLED:true}
     exchange-expiration-seconds: ${AUTH_SSO_EXCHANGE_SECONDS:120}
     clients:
-      - client-id: ${AUTH_SSO_AIV6_CLIENT_ID:aiv6}
-        # Secret lives in DB (runtime.sso.client-secret.aiv6). Optional pin: AUTH_SSO_AIV6_CLIENT_SECRET.
+      - client-id: ${AUTH_SSO_CLIENT_ID:aiv}
+        # Secret lives in DB (runtime.sso.client-secret.aiv). Optional pin: AUTH_SSO_CLIENT_SECRET.
         allowed-return-urls:
-          - ${AUTH_SSO_AIV6_CALLBACK:http://${HOST_IP}:${AIV_PORT}/aiv/sso/callback}
+          - ${AUTH_SSO_CALLBACK:http://${HOST_IP}:${AIV_PORT}/aiv/sso/callback}
   provisioning:
     enabled: ${AUTH_PROVISIONING_ENABLED:true}
     oauth-enabled: ${AUTH_PROVISIONING_OAUTH_ENABLED:true}

@@ -71,7 +71,7 @@ app:
   repositoryLocation: ${aiv_base}/repository
   logDir: ${aiv_base}/logs
   # When true, delivery copies are AES-256 encrypted. Key auto-created in
-  # security.ai_app_setting (runtime.aiv.delivery-encryption-key) at aiv6 startup — not yml.
+  # security.ai_app_setting (runtime.aiv.delivery-encryption-key) at aiv startup — not yml.
   deliveryEncryptionEnabled: false
   # Optional override for failure email HTML (empty = classpath email-templates/job-failure.html)
   jobFailureEmailTemplatePath:
@@ -140,7 +140,7 @@ general:
 # Auth client — server-side URL is Docker service; browser URL from AIV_SSO_PUBLIC_BASE_URL env.
 universalauth:
   base-url: ${AIV_SUPERSECURITY:http://${HOST_IP}:${AUTH_PORT}}
-  client-id: ${AIV_SSO_CLIENT_ID:aiv6}
+  client-id: ${AIV_SSO_CLIENT_ID:aiv}
   public-base-url: ${AIV_SSO_PUBLIC_BASE_URL:http://${HOST_IP}:${AIV_PORT}/aiv}
   callback-path: /sso/callback
   sso-enabled: ${AIV_SSO_REDIRECT_ENABLED:true}

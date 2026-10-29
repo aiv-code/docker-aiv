@@ -47,11 +47,15 @@ services:
       DATABASE_USERNAME: ${AIV_DB_USER}
       DATABASE_PASSWORD: ${AIV_DB_PASSWORD}
       AUTH_UI_BASE_URL: ${AUTH_PUBLIC_URL}
-      AUTH_SSO_AIV6_CALLBACK: ${AIV_PUBLIC_URL}/aiv/sso/callback
+      AUTH_SSO_CALLBACK: ${AIV_PUBLIC_URL}/aiv/sso/callback
       AUTH_CORS_AIV_ORIGIN_PATTERN: http://${HOST_IP}:[*]
+      AUTH_SSO_CLIENT_ID: aiv
       SERVER_PORT: 8080
       LOG_DIR: /app/logs
       LOG_ENV: docker
+      HOST_IP: ${HOST_IP}
+      AIV_PORT: ${AIV_PORT}
+      AUTH_PORT: ${AUTH_PORT}
     depends_on:
       db:
         condition: service_healthy
@@ -107,7 +111,6 @@ services:
       start_period: 120s
     environment:
       aiv_port: 8080
-      HOST_IP: ${HOST_IP}
       aiv_base: /opt
       aiv_db_url: ${AIV_DB_URL}
       aiv_db_user: ${AIV_DB_USER}
@@ -117,7 +120,11 @@ services:
       security_db_password: ${AIV_DB_PASSWORD}
       AIV_SUPERSECURITY: ${AUTH_PUBLIC_URL}
       AIV_SSO_PUBLIC_BASE_URL: ${AIV_PUBLIC_URL}/aiv
-      AIV_SSO_CLIENT_ID: aiv6
+      JOB_FAILURE_EMAIL_PUBLIC_BASE_URL: ${AIV_PUBLIC_URL}/aiv
+      AUTH_PORT: ${AUTH_PORT}
+      HOST_IP: ${HOST_IP}
+      AIV_PORT: ${AIV_PORT}
+      AIV_SSO_CLIENT_ID: aiv
       AIV_SSO_REDIRECT_ENABLED: "true"
       JWT_ACCESS_REUSE_SECONDS: "900"
       LOG_DIR: /opt/logs
