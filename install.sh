@@ -16,7 +16,7 @@ original_file="$aiv_base/config/application.template"
 aiv_logback_file="$aiv_base/config/logback.template"
 
 new_file="$aiv_base/repository/econfig/application.yml"
-aiv_logback_new_file="$aiv_base/repository/econfig/logback.xml"
+aiv_logback_new_file="$aiv_base/repository/econfig/logback-spring.xml"
 
 # Convert backslashes to forward slashes in aiv_base (for Unix-style paths)
 aiv_base="${aiv_base//\\//}"
