@@ -34,7 +34,7 @@ services:
   universalauth:
     platform: linux/amd64
     container_name: universalauth
-    image: aivhub/universalauth:7.0.16
+    image: aivhub/universalauth:7.0.19
     restart: always
     command: >
       java -Duser.timezone=${APP_TIMEZONE} -jar app-exec.jar
@@ -73,7 +73,7 @@ services:
   aiv:
     platform: linux/amd64
     container_name: aiv
-    image: aivhub/aiv:7.0.17
+    image: aivhub/aiv:7.0.18
     restart: always
     command: >
       /bin/bash -c '
