@@ -26,11 +26,35 @@ spring:
     username: ${aiv_db_user}
     password: ${aiv_db_password}
     driverClassName: org.postgresql.Driver
+    # Pool for the AIV metadata datasource — the jdbc/ActiveIDB JNDI resource built in
+    # AivApplication.tomcatFactory. Its CONNECTION details come from datasources.dslist below,
+    # not from the url/username/password above (Boot's own autoconfiguration backs off because
+    # dataSource() is @Primary); only these pool keys are read, by @Value.
+    #
+    # BUDGET: this pool and spring.datasource1 below both draw on ONE PostgreSQL
+    # max_connections budget, shared with every other node on the box. The arithmetic is
+    # N nodes * (this max-total + datasource1 max-total), and it must stay comfortably under the
+    # server's max_connections (4 nodes * (50 + 10) = 240 needs max_connections >= 300, not the
+    # default 100). Raise the two together, never one alone.
+    #
+    # Env overrides: SPRING_DATASOURCE_MAX_TOTAL / _MAX_IDLE / _MAX_WAIT_MS. Prod starts with
+    # -Dspring.config.location=... and never reads this file, so the env vars (or the operator's
+    # econfig/application.yml) are the only way to change these there.
+    max-total: ${SPRING_DATASOURCE_MAX_TOTAL:50}
+    max-idle: ${SPRING_DATASOURCE_MAX_IDLE:20}
+    # Never unbounded. A thread blocked here holds a report mid-flight with no error and no
+    # timeout; failing instead lets the retry and reconcile paths pick the request back up.
+    max-wait-ms: ${SPRING_DATASOURCE_MAX_WAIT_MS:30000}
   datasource1:
     url: ${security_db_url}
     username: ${security_db_user}
     password: ${security_db_password}
     driverClassName: org.postgresql.Driver
+    # PostgreSQL max_connections budget as spring.datasource above. See the BUDGET note there.
+    # Env overrides: SPRING_DATASOURCE1_MAX_TOTAL / _MAX_IDLE / _MAX_WAIT_MS.
+    max-total: ${SPRING_DATASOURCE1_MAX_TOTAL:10}
+    max-idle: ${SPRING_DATASOURCE1_MAX_IDLE:5}
+    max-wait-ms: ${SPRING_DATASOURCE1_MAX_WAIT_MS:30000}
   mvc:
     pathmatch:
       matching-strategy: ANT_PATH_MATCHER
@@ -46,14 +70,14 @@ spring:
       change-log: classpath:db/changelog/db.changelog-security.sql
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    consumer:
-      group-id: task-consumer-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: com.aiv.cluster.MapDeserializer
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: com.aiv.cluster.MapSerializer
+    # consumer:
+    #   group-id: task-consumer-group
+    #   auto-offset-reset: earliest
+    #   key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    #   value-deserializer: com.aiv.cluster.MapDeserializer
+    # producer:
+    #   key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    #   value-serializer: com.aiv.cluster.MapSerializer
 
 datasources:
   dslist[0]: '{"jndi-name":"jdbc/ActiveIDB","driver-class-name":"org.postgresql.Driver","url":"${aiv_db_url}","username":"${aiv_db_user}","password":"${aiv_db_password}"}'
@@ -86,6 +110,35 @@ app:
   marketplaceurl: https://marketplace.aivhub.com/api
   WEBHOOK_SECRET: B4O6XlaeBLAZVSo5g+GrVDz9BM/LcD5EMn6OFoaCIY1pL4qDk9pqdqlnR7Tv7zJ4
   role: ${APP_ROLE:all}
+ # Phase 4: ShedLock DB leader election (use when multiple all/scheduler instances)
+  leader:
+    election:
+      enabled: ${APP_LEADER_ELECTION_ENABLED:false}
+      heartbeat.ms: 10000
+      lock-at-most-for: 30s
+      lock-at-least-for: 0s
+      # Crash handling (leader-gated CrashedRequestWatchdogService; also the "is this node alive"
+      # window used by the report_run claim reclaim and the stuck-task reconciler).
+      crash-detection:
+        # How long a node may miss heartbeats before its RUNNING requests count as crashed.
+        grace-ms: 60000
+        # A request RUNNING on a crashed node is handed to another node even without its own
+        # retry policy, at most this many times per request (a report that keeps killing its
+        # node must not bounce around forever); after that it is FAILED with the crash reason.
+        max-takeovers: 2
+        # Re-fire delay for such a takeover when the request has no retry interval of its own.
+        takeover-delay-ms: 30000
+  # Phase 4 optional: spread fire delays 0..N ms (0 = off)
+  schedule:
+    jitter.ms: ${APP_SCHEDULE_JITTER_MS:0}
+  # Phase 5: bounded executor concurrency (Kafka listener threads; keep low for heavy BIRT)
+  executor:
+    concurrency: ${APP_EXECUTOR_CONCURRENCY:2}
+    # Not currently overridden anywhere — documented here so the default (ExecutorRuntimeConfig)
+    # isn't lost. When true and app.role=executor, also caps the BIRT request pool to this
+    # concurrency instead of leaving it sized for Run-now (web/scheduler keep the larger pool).
+    bound-birt-pool: true
+
   universalauth:
     api-token: ${UNIVERSALAUTH_API_TOKEN:}
     local-verify:
@@ -112,12 +165,96 @@ app:
   task:
     kafka:
       retention.ms: 60000
+      retention.bytes: 10737418240
+      min.insync.replicas: 1
+      # Not currently overridden anywhere — documented here so the default (KafkaTopicConfig)
+      # isn't lost. Broker log-segment rollover; only matters for how retention.ms/bytes are
+      # actually reclaimed (a segment isn't eligible for deletion until it rolls).
+      segment.ms: 3600000
       topic:
         topicName: task-topic
         partitions: 2
         replication-factor: 1
+      producer:
+        acks: all
+        retries: 2147483647
+        delivery.timeout.ms: 120000
+        request.timeout.ms: 30000
+        max.in.flight.requests.per.connection: 5
+      consumer:
+        # Not currently overridden anywhere — documented here so the default
+        # (KafkaConsumerConfig.DEFAULT_GROUP_ID) isn't lost. All consumers in the cluster must
+        # share this group id for partitions (and therefore work) to split across nodes.
+        group-id: aiv-task-consumer-group
+        # Prefer app.executor.concurrency when set (Phase 5)
+        concurrency: ${app.executor.concurrency:2}
+        retry.interval.ms: 2000
+        retry.max.attempts: 3
     manager:
       mode: single
+    # Phase 2: claim table (only effective when manager.mode=multi)
+    idempotency:
+      enabled: true
+      stale.running.ms: 93600000
+    # Stuck-task reconciler (multi mode, leader only): every interval, re-publishes scheduled work
+    # whose report_run claim has no live holder (owner node gone or restarted since claiming,
+    # claim FAILED/missing, or QUEUED longer than overdue-ms). Live work is left alone, and the
+    # claim table dedupes anything republished anyway. Kafka redelivery cannot do this job: acks
+    # are MANUAL_IMMEDIATE at job completion, so a quick job acked later commits past pending ones.
+    reconcile:
+      enabled: true
+      interval-ms: 300000
+      # A one-time request must be this far past its fire time, and a QUEUED claim this old,
+      # before it counts as stuck. Keep well above normal consumer lag on a busy cluster.
+      overdue-ms: 600000
+      # Re-publishes per sweep; a larger backlog drains over successive passes.
+      max-per-sweep: 500
+      # A one-time request whose ai_time_scheduler_cron row is gone has nothing left to publish
+      # from — no run key, no dispatch payload — so the sweep rebuilds that row from the request
+      # itself. (JobTask deletes it in a finally, so a run interrupted after the request reached
+      # RUNNING but before it reached a terminal status used to take the row with it and leave the
+      # request SCHEDULED and invisible to every recovery path.) Each rebuild is a real dispatch
+      # attempt, so cap them: past this the request is marked FAILED rather than re-run forever.
+      # Rebuilds are counted from the ai_request_task rows they stamp, so the cap survives a
+      # leader change.
+      max-rebuilds: 3
+    # Report bursting at scale: above largeThreshold groups, JobTask bulk-creates one ai_request
+    # child per group (batched) instead of rendering every group inline in one request/thread.
+    burst:
+      largeThreshold: 1000
+      batchSize: 500
+      # Only genuinely bounds fetch memory if Config/dbrules.json defines a working LIMIT/OFFSET
+      # template for the dataset's dialect; JobTask detects when it isn't honored and falls back
+      # to a single unbounded pass instead of looping. Keep well above largeThreshold.
+      fetchPageSize: 20000
+# --- Local multi-instance (correct topology — executors are NOT behind the user LB) ---
+#
+# Load balancer / UI traffic  →  web (or all) only
+# Internal / no public port   →  scheduler (bootstrap on startup), executor (Kafka workers)
+#
+# Instance A — web (behind LB), port 8082:
+#   server.port: 8082
+#   app.role: web
+#   app.task.manager.mode: multi
+#
+# Instance B — scheduler (internal, no LB), port 8083:
+#   server.port: 8083
+#   app.role: scheduler
+#   app.task.manager.mode: multi
+#
+# Instance C/D — executors (internal, no LB), ports 8084/8085:
+#   app.role: executor
+#   app.task.manager.mode: multi
+#   app.executor.concurrency: 2
+#
+# WRONG: putting 8083/8084 executors on the same LB as API traffic — schedule creates
+# routed to an executor are skipped (by design). Route user traffic only to web/all.
+#
+# Minimal local (no LB): single web on 8082 + executors 8083/8084 is enough if you
+# hit 8082 directly for API. Optional scheduler only needed for startup bootstrap of
+# existing recurring rows after a cluster restart.
+#
+# Rollback: app.role=all, app.leader.election.enabled=false, single JVM.
 
 embed:
   ekey: ActiveInteigence
@@ -146,3 +283,32 @@ universalauth:
   sso-enabled: ${AIV_SSO_REDIRECT_ENABLED:true}
   security:
     filter-enabled: false
+
+# Usage activity log (logs/usage-activity.log). See docs/USAGE_ACTIVITY_LOG.md.
+usage-log:
+  enabled: ${USAGE_LOG_ENABLED:true}
+  logUiEvents: ${USAGE_LOG_UI_EVENTS_ENABLED:true}
+  samplingRateHighVolumeGet: ${USAGE_LOG_SAMPLING_GET:1.0}
+  maxUiEventBatchSize: 200
+  queueSize: ${USAGE_LOG_QUEUE_SIZE:8192}
+  excludePaths:
+    - /actuator/**
+    - /health/**
+    - /**/favicon.ico
+    - /swagger-ui/**
+    - /v3/api-docs/**
+    - /webjars/**
+    - /static/**
+    - /**/*.js
+    - /**/*.css
+    - /**/*.png
+    - /**/*.jpg
+    - /**/*.svg
+    - /**/*.ico
+  uiEventAllowedTypes:
+    - PAGE_VIEW
+    - BUTTON_CLICK
+    - NAVIGATION
+    - EXPORT_CLICK
+    - FORM_SUBMIT
+    - OTHER
